@@ -49,6 +49,7 @@ venv
 # IntelliJ project files
 .idea
 *.iml
+.run
 out
 gen
 
@@ -56,3 +57,8 @@ gen
 nativefier*.tgz
 
 .vscode
+
+# https://github.com/nektos/act
+.actrc
+
+tsconfig.tsbuildinfo

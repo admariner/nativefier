@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
@@ -5,14 +6,20 @@ import { promisify } from 'util';
 import * as log from 'loglevel';
 
 import { copyFileOrDir, generateRandomSuffix } from '../helpers/helpers';
-import { AppOptions } from '../options/model';
+import {
+  AppOptions,
+  OutputOptions,
+  PackageJSON,
+} from '../../shared/src/options/model';
+import { parseJson } from '../utils/parseUtils';
+import { DEFAULT_APP_NAME } from '../constants';
 
 const writeFileAsync = promisify(fs.writeFile);
 
 /**
  * Only picks certain app args to pass to nativefier.json
  */
-function pickElectronAppArgs(options: AppOptions): any {
+function pickElectronAppArgs(options: AppOptions): OutputOptions {
   return {
     accessibilityPrompt: options.nativefier.accessibilityPrompt,
     alwaysOnTop: options.nativefier.alwaysOnTop,
@@ -64,7 +71,7 @@ function pickElectronAppArgs(options: AppOptions): any {
     maxWidth: options.nativefier.maxWidth,
     minHeight: options.nativefier.minHeight,
     minWidth: options.nativefier.minWidth,
-    name: options.packager.name,
+    name: options.packager.name ?? DEFAULT_APP_NAME,
     nativefierVersion: options.nativefier.nativefierVersion,
     osxNotarize: options.packager.osxNotarize,
     osxSign: options.packager.osxSign,
@@ -81,7 +88,7 @@ function pickElectronAppArgs(options: AppOptions): any {
     tray: options.nativefier.tray,
     usageDescription: options.packager.usageDescription,
     userAgent: options.nativefier.userAgent,
-    userAgentOverriden: options.nativefier.userAgentOverriden,
+    userAgentHonest: options.nativefier.userAgentHonest,
     versionString: options.nativefier.versionString,
     width: options.nativefier.width,
     widevine: options.nativefier.widevine,
@@ -98,7 +105,10 @@ function pickElectronAppArgs(options: AppOptions): any {
   };
 }
 
-async function maybeCopyScripts(srcs: string[], dest: string): Promise<void> {
+async function maybeCopyScripts(
+  srcs: string[] | undefined,
+  dest: string,
+): Promise<void> {
   if (!srcs || srcs.length === 0) {
     log.debug('No files to inject, skipping copy.');
     return;
@@ -120,16 +130,23 @@ async function maybeCopyScripts(srcs: string[], dest: string): Promise<void> {
     }
 
     const postFixHash = generateRandomSuffix();
-    const destFileName = `inject-${postFixHash}.${path.extname(src)}`;
+    const destFileName = `inject-${postFixHash}${path.extname(src)}`;
     const destPath = path.join(dest, 'inject', destFileName);
     log.debug(`Copying injection file "${src}" to "${destPath}"`);
     await copyFileOrDir(src, destPath);
   }
 }
 
-function normalizeAppName(appName: string): string {
-  // use a simple random string to prevent collisions
-  const postFixHash = generateRandomSuffix();
+/**
+ * Use a basic 6-character hash to prevent collisions. The hash is deterministic url & name,
+ * so that an upgrade (same URL) of an app keeps using the same appData folder.
+ * Warning! Changing this normalizing & hashing will change the way appNames are generated,
+ *          changing appData folder, and users will get logged out of their apps after an upgrade.
+ */
+export function normalizeAppName(appName: string, url: string): string {
+  const hash = crypto.createHash('md5');
+  hash.update(url);
+  const postFixHash = hash.digest('hex').substring(0, 6);
   const normalized = appName
     .toLowerCase()
     .replace(/[,:.]/g, '')
@@ -137,14 +154,23 @@ function normalizeAppName(appName: string): string {
   return `${normalized}-nativefier-${postFixHash}`;
 }
 
-function changeAppPackageJsonName(appPath: string, name: string): void {
+function changeAppPackageJsonName(
+  appPath: string,
+  name: string,
+  url: string,
+): void {
   const packageJsonPath = path.join(appPath, '/package.json');
-  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath).toString());
-  const normalizedAppName = normalizeAppName(name);
+  const packageJson = parseJson<PackageJSON>(
+    fs.readFileSync(packageJsonPath).toString(),
+  );
+  if (!packageJson) {
+    throw new Error(`Could not load package.json from ${packageJsonPath}`);
+  }
+  const normalizedAppName = normalizeAppName(name, url);
   packageJson.name = normalizedAppName;
   log.debug(`Updating ${packageJsonPath} 'name' field to ${normalizedAppName}`);
 
-  fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson));
+  fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
 }
 
 /**
@@ -159,30 +185,36 @@ export async function prepareElectronApp(
   log.debug(`Copying electron app from ${src} to ${dest}`);
   try {
     await copyFileOrDir(src, dest);
-  } catch (err) {
-    throw `Error copying electron app from ${src} to temp dir ${dest}. Error: ${(err as Error).toString()}`;
+  } catch (err: unknown) {
+    throw `Error copying electron app from ${src} to temp dir ${dest}. Error: ${
+      (err as Error).message
+    }`;
   }
 
   const appJsonPath = path.join(dest, '/nativefier.json');
   log.debug(`Writing app config to ${appJsonPath}`);
   await writeFileAsync(
     appJsonPath,
-    JSON.stringify(pickElectronAppArgs(options)),
+    JSON.stringify(pickElectronAppArgs(options), null, 2),
   );
 
   if (options.nativefier.bookmarksMenu) {
     const bookmarksJsonPath = path.join(dest, '/bookmarks.json');
     try {
       await copyFileOrDir(options.nativefier.bookmarksMenu, bookmarksJsonPath);
-    } catch (err) {
+    } catch (err: unknown) {
       log.error('Error copying bookmarks menu config file.', err);
     }
   }
 
   try {
     await maybeCopyScripts(options.nativefier.inject, dest);
-  } catch (err) {
+  } catch (err: unknown) {
     log.error('Error copying injection files.', err);
   }
-  changeAppPackageJsonName(dest, options.packager.name);
+  changeAppPackageJsonName(
+    dest,
+    options.packager.name as string,
+    options.packager.targetUrl,
+  );
 }

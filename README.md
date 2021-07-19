@@ -1,9 +1,6 @@
 # Nativefier
 
-[![Build Status](https://github.com/nativefier/nativefier/workflows/ci/badge.svg)](https://github.com/nativefier/nativefier/actions?query=workflow%3Aci)
-[![npm version](https://badge.fury.io/js/nativefier.svg)](https://www.npmjs.com/package/nativefier)
-
-![Dock](docs/dock.png)
+![Example of Nativefier app in the macOS dock](.github/dock-screenshot.png)
 
 You want to make a native wrapper for WhatsApp Web (or any web page).
 
@@ -11,7 +8,7 @@ You want to make a native wrapper for WhatsApp Web (or any web page).
 nativefier 'web.whatsapp.com'
 ```
 
-![Walkthrough animation](docs/walkthrough.gif)
+![Walkthrough animation](.github/nativefier-walkthrough.gif)
 
 You're done.
 
@@ -28,12 +25,12 @@ through the numerous open tabs when I was using [Facebook Messenger](https://mes
 
 - Automatically retrieval of app icon / name.
 - JavaScript and CSS injection.
-- Many more, see the [API docs](docs/api.md) or `nativefier --help`
+- Many more, see the [API docs](API.md) or `nativefier --help`
 
 ## Installation
 
 - macOS 10.9+ / Windows / Linux
-- [Node.js](https://nodejs.org/) `>= 10` and npm `>= 6`
+- [Node.js](https://nodejs.org/) `>= 12.9` and npm `>= 6.9`
 - Optional dependencies:
     - [ImageMagick](http://www.imagemagick.org/) or [GraphicsMagick](http://www.graphicsmagick.org/) to convert icons.
       Make sure `convert` and `identify` or `gm` are in your system `$PATH`.
@@ -51,11 +48,15 @@ Nativefier will try to determine the app name, and well as lots of other options
 If desired, these options can be overwritten. For example, to override the name,
 `nativefier --name 'My Medium App' 'medium.com'`
 
-**Read the [API documentation](docs/api.md) or run `nativefier --help`**
+**Read the [API documentation](API.md) or run `nativefier --help`**
 to learn about other command-line flags usable to configure the packaged app.
 
 To have high-resolution icons used by default for an app/domain, please
 contribute to the [icon repository](https://github.com/nativefier/nativefier-icons)!
+
+### Build Commands Catalog
+
+For a list of build commands contributed by the nativefier community take a look at the [CATALOG.md file](CATALOG.md)
 
 ## Usage with Docker
 
@@ -82,7 +83,7 @@ docker run --rm -v ~/my-icons-folder/:/src -v $TARGET-PATH:/target nativefier/na
 Help welcome on [bugs](https://github.com/nativefier/nativefier/issues?q=is%3Aopen+is%3Aissue+label%3Abug) and
 [feature requests](https://github.com/nativefier/nativefier/issues?q=is%3Aopen+is%3Aissue+label%3Afeature-request).
 
-[Developer / build docs](docs/development.md), [API documentation](docs/api.md), 
+[Developer / build docs](HACKING.md), [API documentation](API.md), 
 [Changelog](CHANGELOG.md).
 
 ## License
@@ -93,13 +94,15 @@ Help welcome on [bugs](https://github.com/nativefier/nativefier/issues?q=is%3Aop
 
 Before submitting a question or bug report, please ensure you have read through these common issues and see if you can resolve the problem on your own. If you still encounter issues after trying these steps, or you don't see something similar to your issue listed, please submit a [bug report](https://github.com/nativefier/nativefier/issues/new?assignees=&labels=bug&template=bug_report.md).
 
+Take a look a the [Build Command Catalog](CATALOG.md) as a working command for your application may already exist there.
+
 ### I am trying to use Nativefier to build an app for a site that tells me I have an old/unsupported browser.
 
 This issue comes up for sites that do not wish to support an app made with Nativefier or similar technologies (such as [Google](https://github.com/nativefier/nativefier/issues/831) and [WhatsApp](https://github.com/nativefier/nativefier/issues/1112))
 
 #### Troubleshooting Steps
 
-1. First try setting the [`--user-agent`](https://github.com/nativefier/nativefier/blob/master/docs/api.md#user-agent) to something different. Try using the value you would get at [https://www.whatismybrowser.com/detect/what-is-my-user-agent] and use your current browser's user agent.
+1. First try setting the [`--user-agent`](https://github.com/nativefier/nativefier/blob/master/API.md#user-agent) to something different. Try using the value you would get at [https://www.whatismybrowser.com/detect/what-is-my-user-agent] and use your current browser's user agent.
 2. If this doesn't work, the site (such as WhatsApp) may be using a service worker to analyze the app and detect. You can disable the service worker cache by doing the following, which is a known fix for WhatsApp:
     1.  Create a javascript file containing the following snippet:
         ```javascript
@@ -111,7 +114,7 @@ This issue comes up for sites that do not wish to support an app made with Nativ
             });
         }
         ```
-    2. Inject the javascript file into your app when generating it with the [`--inject`](https://github.com/nativefier/nativefier/blob/master/docs/api.md#inject) argument.
+    2. Inject the javascript file into your app when generating it with the [`--inject`](https://github.com/nativefier/nativefier/blob/master/API.md#inject) argument.
 
 ### I am trying to use Nativefier to build an app for a site with video, but the video won't play.
 
@@ -119,7 +122,7 @@ This issue comes up for certain sites like [HBO Max](https://github.com/nativefi
 
 #### Troubleshooting Steps
 
-1. First try using the [`--widevine`](https://github.com/nativefier/nativefier/blob/master/docs/api.md#widevine) argument when building the app. This uses the [Castlabs version of Electron](https://github.com/castlabs/electron-releases) which allows the playback of DRM enabled video.
+1. First try using the [`--widevine`](https://github.com/nativefier/nativefier/blob/master/API.md#widevine) argument when building the app. This uses the [Castlabs version of Electron](https://github.com/castlabs/electron-releases) which allows the playback of DRM enabled video.
 2. If this doesn't work, the site may require your app to be signed for `--widevine` to work. See the [Castlabs documentation](https://github.com/castlabs/electron-releases/wiki/EVS) on using their application signing service to sign the application.
 
 ### I am trying different options to Nativefier to experiment with, but noticing that sometimes things cache between rebuilds of my app.
